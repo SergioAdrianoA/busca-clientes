@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Busca de Clientes</title>
+
+<style>
+
+body{
+font-family: Arial;
+background:#f4f4f4;
+margin:0;
+padding:20px;
+}
+
+h2{
+text-align:center;
+}
+
+#busca{
+width:100%;
+padding:12px;
+font-size:18px;
+margin-bottom:10px;
+}
+
+button{
+padding:10px;
+font-size:16px;
+margin-bottom:20px;
+}
+
+.cliente{
+background:white;
+padding:15px;
+margin-bottom:8px;
+border-radius:6px;
+box-shadow:0 2px 5px rgba(0,0,0,0.2);
+cursor:pointer;
+}
+
+.cliente:hover{
+background:#e8f0fe;
+}
+
+.codigo{
+font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>Busca de Clientes</h2>
+
+<input id="busca" placeholder="Digite código ou cliente">
+
+<button onclick="buscar()">Buscar</button>
+
+<div id="lista"></div>
+
+<script>
+
+const urlAPI = "https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
+
+let clientes = [];
+
+async function carregarClientes(){
+
+const response = await fetch(urlAPI);
+clientes = await response.json();
+
+mostrar(clientes);
+
+}
+
+function buscar(){
+
+let texto = document
+.getElementById("busca")
+.value
+.toLowerCase();
+
+let resultado = clientes.filter(c =>
+(c.codigo+"").toLowerCase().includes(texto) ||
+(c.cliente+"").toLowerCase().includes(texto)
+);
+
+mostrar(resultado);
+
+}
+
+function mostrar(lista){
+
+const div = document.getElementById("lista");
+
+div.innerHTML="";
+
+lista.forEach(c=>{
+
+let item = document.createElement("div");
+
+item.className="cliente";
+
+item.innerHTML=
+"<div class='codigo'>"+c.codigo+" - "+c.cliente+"</div>";
+
+item.onclick = ()=>{
+abrirMapa(c.endereco);
+}
+
+div.appendChild(item);
+
+});
+
+}
+
+function abrirMapa(endereco){
+
+let url =
+"https://www.google.com/maps/dir/?api=1&destination="
++encodeURIComponent(endereco);
+
+window.open(url,"_blank");
+
+}
+
+carregarClientes();
+
+</script>
+
+</body>
+</html>
