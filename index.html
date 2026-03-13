@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Busca de Clientes</title>
+
+<style>
+
+body{
+font-family: Arial, sans-serif;
+background:#f2f2f2;
+margin:0;
+}
+
+header{
+background:#1e88e5;
+color:white;
+padding:15px;
+text-align:center;
+font-size:20px;
+font-weight:bold;
+}
+
+.container{
+padding:15px;
+}
+
+input{
+width:100%;
+padding:14px;
+border-radius:8px;
+border:1px solid #ccc;
+font-size:16px;
+margin-bottom:15px;
+}
+
+.card{
+background:white;
+border-radius:10px;
+padding:15px;
+margin-bottom:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+
+.codigo{
+font-weight:bold;
+font-size:16px;
+}
+
+.nome{
+font-size:15px;
+color:#444;
+margin-top:3px;
+}
+
+.endereco{
+font-size:13px;
+color:#777;
+margin-top:4px;
+}
+
+.botoes{
+margin-top:10px;
+display:flex;
+gap:8px;
+}
+
+.botao{
+flex:1;
+padding:8px;
+border:none;
+border-radius:6px;
+font-size:14px;
+cursor:pointer;
+color:white;
+}
+
+.rota{
+background:#1e88e5;
+}
+
+.ligar{
+background:#43a047;
+}
+
+.whatsapp{
+background:#25D366;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+Busca de Clientes
+</header>
+
+<div class="container">
+
+<input id="busca" placeholder="Buscar por código ou cliente">
+
+<div id="lista"></div>
+
+</div>
+
+<script>
+
+const api = "COLE_AQUI_URL_DO_APPS_SCRIPT";
+
+let clientes=[];
+
+async function carregar(){
+
+const res = await fetch(api);
+
+clientes = await res.json();
+
+mostrar(clientes);
+
+}
+
+function mostrar(lista){
+
+const div = document.getElementById("lista");
+
+div.innerHTML="";
+
+lista.forEach(c=>{
+
+const card = document.createElement("div");
+
+card.className="card";
+
+card.innerHTML=`
+
+<div class="codigo">${c.codigo}</div>
+<div class="nome">${c.cliente}</div>
+<div class="endereco">${c.endereco}</div>
+
+<div class="botoes">
+
+<button class="botao rota"
+onclick="rota('${c.endereco}')">
+Rota
+</button>
+
+<button class="botao ligar"
+onclick="ligar('${c.telefone || ""}')">
+Ligar
+</button>
+
+<button class="botao whatsapp"
+onclick="whats('${c.telefone || ""}')">
+WhatsApp
+</button>
+
+</div>
+`;
+
+div.appendChild(card);
+
+});
+
+}
+
+function rota(endereco){
+
+const url="https://www.google.com/maps/dir/?api=1&destination="
++encodeURIComponent(endereco);
+
+window.open(url);
+
+}
+
+function ligar(tel){
+
+if(!tel){
+alert("Telefone não disponível");
+return;
+}
+
+window.location.href="tel:"+tel;
+
+}
+
+function whats(tel){
+
+if(!tel){
+alert("Telefone não disponível");
+return;
+}
+
+window.open("https://wa.me/"+tel);
+
+}
+
+document.getElementById("busca").addEventListener("input",function(){
+
+const termo=this.value.toLowerCase();
+
+const filtrados=clientes.filter(c=>
+
+String(c.codigo).toLowerCase().includes(termo) ||
+c.cliente.toLowerCase().includes(termo)
+
+);
+
+mostrar(filtrados);
+
+});
+
+carregar();
+
+</script>
+
+</body>
+
+</html>
