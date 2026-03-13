@@ -35,6 +35,15 @@ padding:14px;
 border-radius:8px;
 border:1px solid #ccc;
 font-size:16px;
+margin-bottom:10px;
+}
+
+select{
+width:100%;
+padding:12px;
+border-radius:8px;
+border:1px solid #ccc;
+font-size:15px;
 margin-bottom:15px;
 }
 
@@ -105,6 +114,10 @@ Busca de Clientes
 
 <input id="busca" placeholder="Buscar por código ou cliente">
 
+<select id="cidade">
+<option value="">Todas as cidades</option>
+</select>
+
 <div id="lista"></div>
 
 </div>
@@ -115,21 +128,64 @@ const api = "https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03
 
 let clientes=[];
 
+
+
 async function carregar(){
 
-const res = await fetch(api);
+try{
+
+const res = await fetch(api+"?action=clientes");
 
 clientes = await res.json();
 
+popularCidades();
+
 mostrar(clientes);
 
+}catch(e){
+
+alert("Erro ao carregar clientes");
+
 }
+
+}
+
+
+
+function popularCidades(){
+
+const cidades = [...new Set(clientes.map(c=>c.cidade))];
+
+const select = document.getElementById("cidade");
+
+cidades.forEach(c=>{
+
+const op = document.createElement("option");
+
+op.value=c;
+
+op.textContent=c;
+
+select.appendChild(op);
+
+});
+
+}
+
+
 
 function mostrar(lista){
 
 const div = document.getElementById("lista");
 
 div.innerHTML="";
+
+if(lista.length==0){
+
+div.innerHTML="<p>Nenhum cliente encontrado</p>";
+return;
+
+}
 
 lista.forEach(c=>{
 
@@ -140,7 +196,9 @@ card.className="card";
 card.innerHTML=`
 
 <div class="codigo">${c.codigo}</div>
+
 <div class="nome">${c.cliente}</div>
+
 <div class="endereco">${c.endereco}</div>
 
 <div class="botoes">
@@ -161,6 +219,7 @@ WhatsApp
 </button>
 
 </div>
+
 `;
 
 div.appendChild(card);
@@ -169,51 +228,79 @@ div.appendChild(card);
 
 }
 
+
+
 function rota(endereco){
 
-const url="https://www.google.com/maps/dir/?api=1&destination="
-+encodeURIComponent(endereco);
+const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(endereco);
 
 window.open(url);
 
 }
 
+
+
 function ligar(tel){
 
 if(!tel){
+
 alert("Telefone não disponível");
+
 return;
+
 }
 
 window.location.href="tel:"+tel;
 
 }
 
+
+
 function whats(tel){
 
 if(!tel){
+
 alert("Telefone não disponível");
+
 return;
+
 }
 
 window.open("https://wa.me/"+tel);
 
 }
 
-document.getElementById("busca").addEventListener("input",function(){
 
-const termo=this.value.toLowerCase();
 
-const filtrados=clientes.filter(c=>
+async function buscar(){
 
-String(c.codigo).toLowerCase().includes(termo) ||
-c.cliente.toLowerCase().includes(termo)
+const termo=document.getElementById("busca").value;
 
-);
+const cidade=document.getElementById("cidade").value;
 
-mostrar(filtrados);
+let url=api+"?action=buscar&q="+encodeURIComponent(termo);
 
-});
+if(cidade){
+
+url+="&cidade="+encodeURIComponent(cidade);
+
+}
+
+const res=await fetch(url);
+
+const dados=await res.json();
+
+mostrar(dados);
+
+}
+
+
+
+document.getElementById("busca").addEventListener("input",buscar);
+
+document.getElementById("cidade").addEventListener("change",buscar);
+
+
 
 carregar();
 
