@@ -33,21 +33,24 @@ font-size:20px;
 padding:15px;
 }
 
-input,select{
-width:100%;
-padding:12px;
-border-radius:8px;
-border:1px solid #ccc;
-margin-bottom:10px;
+.menu{
+display:flex;
+justify-content:space-around;
+background:white;
+border-bottom:1px solid #ddd;
 }
 
-button{
-padding:10px;
+.menu button{
+flex:1;
+padding:12px;
 border:none;
-border-radius:6px;
-background:#1976d2;
-color:white;
+background:white;
+font-size:14px;
 cursor:pointer;
+}
+
+.tela{
+display:none;
 }
 
 .card{
@@ -58,20 +61,26 @@ border-radius:8px;
 box-shadow:0 2px 4px rgba(0,0,0,0.2);
 }
 
+input,select{
+width:100%;
+padding:10px;
+margin-bottom:10px;
+border-radius:8px;
+border:1px solid #ccc;
+}
+
+button{
+padding:8px;
+border:none;
+border-radius:6px;
+background:#1976d2;
+color:white;
+cursor:pointer;
+}
+
 #map{
-height:300px;
-margin-top:10px;
+height:350px;
 border-radius:10px;
-}
-
-.botoes{
-margin-top:8px;
-display:flex;
-gap:5px;
-}
-
-.botoes button{
-flex:1;
 }
 
 </style>
@@ -81,30 +90,78 @@ flex:1;
 <body>
 
 <header>
-Rota Clientes
+Sistema de Rotas
 </header>
+
+<!-- LOGIN -->
+
+<div id="login" class="container">
+
+<h3>Login</h3>
+
+<input id="usuario" placeholder="Usuário">
+
+<input id="senha" type="password" placeholder="Senha">
+
+<button onclick="login()">Entrar</button>
+
+</div>
+
+<!-- APP -->
+
+<div id="app" style="display:none">
+
+<div class="menu">
+
+<button onclick="abrirAba('clientes')">
+Clientes
+</button>
+
+<button onclick="abrirAba('rota')">
+Rota do Dia
+</button>
+
+<button onclick="abrirAba('mapa')">
+Mapa
+</button>
+
+<button onclick="logout()">
+Sair
+</button>
+
+</div>
 
 <div class="container">
 
-<input id="busca" placeholder="Buscar cliente ou código">
+<!-- CLIENTES -->
 
-<select id="cidade">
-<option value="">Todas Cidades</option>
-</select>
+<div id="clientes" class="tela">
 
-<select id="base">
-<option value="">Todas Bases</option>
-</select>
+<input id="busca" placeholder="Buscar cliente">
 
-  <select id="bairro">
-<option value="">Todos os Bairros</option>
-</select>
+<div id="listaClientes"></div>
 
-<button onclick="buscar()">Buscar</button>
+</div>
 
-<div id="lista"></div>
+<!-- ROTA -->
+
+<div id="rota" class="tela">
+
+<h3>Rota do Dia</h3>
+
+<div id="listaRota"></div>
+
+</div>
+
+<!-- MAPA -->
+
+<div id="mapa" class="tela">
 
 <div id="map"></div>
+
+</div>
+
+</div>
 
 </div>
 
@@ -114,32 +171,91 @@ Rota Clientes
 
 const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
 
+let clientes=[];
+
 let mapa;
 
 let marcadores=[];
 
-let debounce;
 
 
+function abrirAba(nome){
 
-function iniciarMapa(){
+document
+.querySelectorAll(".tela")
+.forEach(t=>t.style.display="none")
 
-mapa = L.map("map").setView([-2.638,-54.937],12);
+document
+.getElementById(nome)
+.style.display="block"
 
-L.tileLayer(
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-{maxZoom:19}
-).addTo(mapa);
+if(nome=="rota") carregarRota()
 
 }
 
 
 
-function limparMapa(){
+async function login(){
 
-marcadores.forEach(m=>mapa.removeLayer(m));
+let usuario=document.getElementById("usuario").value
 
-marcadores=[];
+let senha=document.getElementById("senha").value
+
+let r=await fetch(
+API+"?action=login&usuario="+usuario+"&senha="+senha
+)
+
+let d=await r.json()
+
+if(d.status=="ok"){
+
+localStorage.setItem("vendedor",usuario)
+
+abrirSistema()
+
+}else{
+
+alert("Login inválido")
+
+}
+
+}
+
+
+
+function abrirSistema(){
+
+document.getElementById("login").style.display="none"
+
+document.getElementById("app").style.display="block"
+
+abrirAba("clientes")
+
+carregarClientes()
+
+}
+
+
+
+function logout(){
+
+localStorage.removeItem("vendedor")
+
+location.reload()
+
+}
+
+
+
+async function carregarClientes(){
+
+let r=await fetch(API+"?action=clientes")
+
+clientes=await r.json()
+
+mostrarClientes(clientes)
+
+mostrarMapa(clientes)
 
 }
 
@@ -147,9 +263,9 @@ marcadores=[];
 
 function mostrarClientes(lista){
 
-const div=document.getElementById("lista");
+const div=document.getElementById("listaClientes")
 
-div.innerHTML="";
+div.innerHTML=""
 
 lista.slice(0,100).forEach(c=>{
 
@@ -163,69 +279,89 @@ ${c.cliente}<br>
 
 ${c.endereco}
 
-<div class="botoes">
+<br><br>
+
+<button onclick="addRota('${c.codigo}')">
+Adicionar à rota
+</button>
 
 <button onclick="rota('${c.endereco}')">
-Rota
+Abrir rota
 </button>
+
+</div>
+
+`
+
+})
+
+}
+
+
+
+async function addRota(codigo){
+
+let vendedor=localStorage.getItem("vendedor")
+
+await fetch(
+API+
+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor
+)
+
+alert("Adicionado à rota")
+
+}
+
+
+
+async function carregarRota(){
+
+let vendedor=localStorage.getItem("vendedor")
+
+let r=await fetch(
+API+"?action=rota_listar&vendedor="+vendedor
+)
+
+let rota=await r.json()
+
+const div=document.getElementById("listaRota")
+
+div.innerHTML=""
+
+rota.forEach(c=>{
+
+div.innerHTML+=`
+
+<div class="card">
+
+Cliente ${c.codigo}
+
+<br><br>
 
 <button onclick="visita('${c.codigo}')">
-Visitado
+Registrar visita
 </button>
 
 </div>
 
-</div>
+`
 
-`;
-
-});
+})
 
 }
 
 
 
-function mostrarMapa(lista){
+async function visita(codigo){
 
-limparMapa();
+let vendedor=localStorage.getItem("vendedor")
 
-lista.slice(0,50).forEach(c=>{
+await fetch(
+API+
+"?action=visita&codigo="+codigo+"&vendedor="+vendedor
+)
 
-if(!c.lat) return;
-
-let m=L.marker([c.lat,c.lng])
-.addTo(mapa)
-.bindPopup(c.cliente);
-
-marcadores.push(m);
-
-});
-
-}
-
-
-
-async function buscar(){
-
-const termo=document.getElementById("busca").value;
-
-const cidade=document.getElementById("cidade").value;
-
-const base=document.getElementById("base").value;
-
-let url=API+"?action=buscar&q="+encodeURIComponent(termo);
-
-if(cidade) url+="&cidade="+cidade;
-
-if(base) url+="&base="+base;
-
-const r=await fetch(url);
-
-const dados=await r.json();
-
-mostrarClientes(dados);
-
-mostrarMapa(dados);
+alert("Visita registrada")
 
 }
 
@@ -236,36 +372,55 @@ function rota(endereco){
 window.open(
 "https://www.google.com/maps/dir/?api=1&destination="+
 encodeURIComponent(endereco)
-);
+)
 
 }
 
 
 
-async function visita(codigo){
+function iniciarMapa(){
 
-await fetch(
-API+"?action=visita&codigo="+codigo+"&vendedor=1"
-);
+mapa = L.map("map").setView([-2.638,-54.937],12)
 
-alert("Visita registrada");
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+).addTo(mapa)
 
 }
 
 
 
-document.getElementById("busca")
-.addEventListener("input",function(){
+function mostrarMapa(lista){
 
-clearTimeout(debounce);
+marcadores.forEach(m=>mapa.removeLayer(m))
 
-debounce=setTimeout(buscar,500);
+marcadores=[]
 
-});
+lista.slice(0,50).forEach(c=>{
+
+if(!c.lat) return
+
+let m=L.marker([c.lat,c.lng])
+.addTo(mapa)
+.bindPopup(c.cliente)
+
+marcadores.push(m)
+
+})
+
+}
 
 
 
-iniciarMapa();
+let vendedorSalvo=localStorage.getItem("vendedor")
+
+if(vendedorSalvo){
+
+abrirSistema()
+
+}
+
+iniciarMapa()
 
 </script>
 
@@ -273,7 +428,7 @@ iniciarMapa();
 
 if("serviceWorker" in navigator){
 
-navigator.serviceWorker.register("sw.js");
+navigator.serviceWorker.register("sw.js")
 
 }
 
