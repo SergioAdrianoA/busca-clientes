@@ -6,23 +6,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Rota Clientes</title>
+<title>Rota Cliente</title>
+
+<link rel="manifest" href="manifest.json">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 
 body{
-font-family: Arial;
-background:#f2f2f2;
+font-family:Arial;
 margin:0;
+background:#f5f5f5;
 }
 
 header{
 background:#1976d2;
 color:white;
-padding:16px;
+padding:15px;
 text-align:center;
 font-size:20px;
-font-weight:bold;
 }
 
 .container{
@@ -35,61 +38,39 @@ padding:12px;
 border-radius:8px;
 border:1px solid #ccc;
 margin-bottom:10px;
-font-size:15px;
+}
+
+button{
+padding:10px;
+border:none;
+border-radius:6px;
+background:#1976d2;
+color:white;
+cursor:pointer;
 }
 
 .card{
 background:white;
+padding:12px;
+margin-bottom:10px;
+border-radius:8px;
+box-shadow:0 2px 4px rgba(0,0,0,0.2);
+}
+
+#map{
+height:350px;
+margin-top:10px;
 border-radius:10px;
-padding:15px;
-margin-bottom:12px;
-box-shadow:0 2px 6px rgba(0,0,0,0.15);
-}
-
-.codigo{
-font-weight:bold;
-font-size:16px;
-}
-
-.nome{
-font-size:15px;
-margin-top:3px;
-}
-
-.endereco{
-font-size:13px;
-color:#777;
-margin-top:5px;
-}
-
-.base{
-font-size:12px;
-color:#1976d2;
-margin-top:4px;
 }
 
 .botoes{
-margin-top:10px;
+margin-top:8px;
 display:flex;
-gap:8px;
+gap:5px;
 }
 
-.botao{
+.botoes button{
 flex:1;
-padding:8px;
-border:none;
-border-radius:6px;
-font-size:14px;
-cursor:pointer;
-color:white;
-}
-
-.rota{
-background:#1976d2;
-}
-
-.visita{
-background:#43a047;
 }
 
 </style>
@@ -99,7 +80,7 @@ background:#43a047;
 <body>
 
 <header>
-Rota Clientes
+Sistema de Rotas
 </header>
 
 <div class="container">
@@ -107,161 +88,165 @@ Rota Clientes
 <input id="busca" placeholder="Buscar cliente ou código">
 
 <select id="cidade">
-<option value="">Todas as cidades</option>
+<option value="">Todas cidades</option>
 </select>
 
 <select id="base">
-<option value="">Todas as bases</option>
+<option value="">Todas bases</option>
 </select>
+
+<button onclick="buscar()">Buscar</button>
+
+<h3>Clientes</h3>
 
 <div id="lista"></div>
 
+<h3>Mapa</h3>
+
+<div id="map"></div>
+
+<h3>Dashboard</h3>
+
+<div id="dashboard"></div>
+
 </div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
-const api = "https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
+const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
 
 let clientes=[];
 
+let rotaDia=[];
+
+let mapa;
+
+let marcadores=[];
 
 
-async function carregar(){
 
-try{
+function iniciarMapa(){
 
-const res = await fetch(api+"?action=clientes");
+mapa = L.map('map').setView([-2.638,-54.937],12);
 
-clientes = await res.json();
-
-popularCidades();
-
-popularBases();
-
-mostrar(clientes);
-
-}catch(e){
-
-alert("Erro ao carregar clientes");
-
-}
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{maxZoom:19}
+).addTo(mapa);
 
 }
 
 
 
-function popularCidades(){
+async function carregarClientes(){
 
-const cidades = [...new Set(clientes.map(c=>c.cidade))];
+const r = await fetch(API+"?action=clientes");
 
-const select = document.getElementById("cidade");
+clientes = await r.json();
+
+popularFiltros();
+
+mostrarClientes(clientes);
+
+marcarMapa(clientes);
+
+}
+
+
+
+function popularFiltros(){
+
+let cidades=[...new Set(clientes.map(c=>c.cidade))];
+
+let bases=[...new Set(clientes.map(c=>c.base))];
 
 cidades.forEach(c=>{
-
-const op = document.createElement("option");
-
-op.value=c;
-
-op.textContent=c;
-
-select.appendChild(op);
-
+document.getElementById("cidade").innerHTML+=
+`<option value="${c}">${c}</option>`;
 });
-
-}
-
-
-
-function popularBases(){
-
-const bases = [...new Set(clientes.map(c=>c.base))];
-
-const select = document.getElementById("base");
 
 bases.forEach(b=>{
-
-const op = document.createElement("option");
-
-op.value=b;
-
-op.textContent=b;
-
-select.appendChild(op);
-
+document.getElementById("base").innerHTML+=
+`<option value="${b}">${b}</option>`;
 });
 
 }
 
 
 
-function mostrar(lista){
+function mostrarClientes(lista){
 
-const div = document.getElementById("lista");
+const div=document.getElementById("lista");
 
 div.innerHTML="";
 
-if(lista.length==0){
-
-div.innerHTML="<p>Nenhum cliente encontrado</p>";
-return;
-
-}
-
 lista.forEach(c=>{
 
-const card = document.createElement("div");
+div.innerHTML+=`
 
-card.className="card";
+<div class="card">
 
-card.innerHTML=`
-
-<div class="codigo">${c.codigo}</div>
-
-<div class="nome">${c.cliente}</div>
-
-<div class="endereco">${c.endereco}</div>
-
-<div class="base">Base: ${c.base}</div>
+<b>${c.codigo}</b><br>
+${c.cliente}<br>
+${c.endereco}<br>
+Base: ${c.base}
 
 <div class="botoes">
 
-<button class="botao rota"
-onclick="rota('${c.endereco}')">
-Abrir rota
+<button onclick="abrirRota('${c.endereco}')">
+Rota
 </button>
 
-<!--<button class="botao visita"
-onclick="visita('${c.codigo}')">
-Registrar visita
-</button>-->
+<button onclick="addRota('${c.codigo}')">
+Rota do Dia
+</button>
+
+<button onclick="visita('${c.codigo}')">
+Visitado
+</button>
+
+</div>
 
 </div>
 
 `;
 
-div.appendChild(card);
-
 });
 
 }
 
 
 
-function rota(endereco){
+function abrirRota(endereco){
 
-const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(endereco);
-
-window.open(url);
+window.open(
+"https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(endereco)
+);
 
 }
 
 
 
-async function visita(codigo){
+function marcarMapa(lista){
 
-await fetch(api+"?action=visita&codigo="+codigo+"&vendedor=1");
+marcadores.forEach(m=>mapa.removeLayer(m));
 
-alert("Visita registrada");
+marcadores=[];
+
+lista.forEach(c=>{
+
+if(!c.lat) return;
+
+let m=L.marker([c.lat,c.lng])
+.addTo(mapa)
+.bindPopup(c.cliente);
+
+marcadores.push(m);
+
+});
 
 }
 
@@ -275,44 +260,96 @@ const cidade=document.getElementById("cidade").value;
 
 const base=document.getElementById("base").value;
 
-let url=api+"?action=buscar&q="+encodeURIComponent(termo);
+let url=API+"?action=buscar&q="+encodeURIComponent(termo);
 
-if(cidade){
+if(cidade) url+="&cidade="+cidade;
 
-url+="&cidade="+encodeURIComponent(cidade);
+if(base) url+="&base="+base;
 
-}
+const r=await fetch(url);
 
-if(base){
+const dados=await r.json();
 
-url+="&base="+encodeURIComponent(base);
+mostrarClientes(dados);
 
-}
-
-const res=await fetch(url);
-
-const dados=await res.json();
-
-mostrar(dados);
+marcarMapa(dados);
 
 }
 
 
 
-document.getElementById("busca").addEventListener("input",buscar);
+function addRota(codigo){
 
-document.getElementById("cidade").addEventListener("change",buscar);
+rotaDia.push(codigo);
 
-document.getElementById("base").addEventListener("change",buscar);
+fetch(API+
+"?action=rota_salvar&codigo="+codigo+"&vendedor=1");
+
+alert("Cliente adicionado à rota do dia");
+
+}
 
 
 
-carregar();
+async function visita(codigo){
+
+await fetch(API+
+"?action=visita&codigo="+codigo+"&vendedor=1");
+
+alert("Visita registrada");
+
+dashboard();
+
+}
+
+
+
+async function dashboard(){
+
+const r=await fetch(API+"?action=dashboard&vendedor=1");
+
+const d=await r.json();
+
+document.getElementById("dashboard").innerHTML=
+"Visitas hoje: "+d.visitas_hoje;
+
+}
+
+
+
+navigator.geolocation.getCurrentPosition(pos=>{
+
+const lat=pos.coords.latitude;
+
+const lng=pos.coords.longitude;
+
+clientes.sort((a,b)=>{
+
+let da=Math.sqrt(
+Math.pow(lat-a.lat,2)+Math.pow(lng-a.lng,2)
+);
+
+let db=Math.sqrt(
+Math.pow(lat-b.lat,2)+Math.pow(lng-b.lng,2)
+);
+
+return da-db;
+
+});
+
+mostrarClientes(clientes);
+
+});
+
+
+
+iniciarMapa();
+
+carregarClientes();
+
+dashboard();
 
 </script>
 
 </body>
-
 </html>
-
-
