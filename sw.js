@@ -1,26 +1,36 @@
-self.addEventListener("install", event => {
+const CACHE_NAME="rotas-lite";
+
+const FILES=[
+"./",
+"./index.html"
+];
+
+self.addEventListener("install",event=>{
 
 event.waitUntil(
 
-caches.open("rotas-v1").then(cache => {
-return cache.addAll([
-"./",
-"./index.html"
-])
-})
+caches.open(CACHE_NAME).then(cache=>{
 
-)
+return cache.addAll(FILES);
 
 })
 
-self.addEventListener("fetch", event => {
+);
+
+});
+
+
+
+self.addEventListener("fetch",event=>{
 
 event.respondWith(
 
-caches.match(event.request).then(response => {
-return response || fetch(event.request)
-})
+fetch(event.request).catch(()=>{
 
-)
+return caches.match(event.request);
 
 })
+
+);
+
+});
