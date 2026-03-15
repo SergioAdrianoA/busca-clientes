@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 
-<head <link rel="manifest" href="manifest.json">>
+<head>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Rota Cliente</title>
+<title>Sistema de Rotas</title>
 
 <link rel="manifest" href="manifest.json">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 
@@ -58,7 +59,7 @@ box-shadow:0 2px 4px rgba(0,0,0,0.2);
 }
 
 #map{
-height:350px;
+height:300px;
 margin-top:10px;
 border-radius:10px;
 }
@@ -97,17 +98,9 @@ Sistema de Rotas
 
 <button onclick="buscar()">Buscar</button>
 
-<h3>Clientes</h3>
-
 <div id="lista"></div>
 
-<h3>Mapa</h3>
-
 <div id="map"></div>
-
-<h3>Dashboard</h3>
-
-<div id="dashboard"></div>
 
 </div>
 
@@ -117,22 +110,20 @@ Sistema de Rotas
 
 const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
 
-let clientes=[];
-
-let rotaDia=[];
-
 let mapa;
 
 let marcadores=[];
+
+let debounce;
 
 
 
 function iniciarMapa(){
 
-mapa = L.map('map').setView([-2.638,-54.937],12);
+mapa = L.map("map").setView([-2.638,-54.937],12);
 
 L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 {maxZoom:19}
 ).addTo(mapa);
 
@@ -140,37 +131,11 @@ L.tileLayer(
 
 
 
-async function carregarClientes(){
+function limparMapa(){
 
-const r = await fetch(API+"?action=clientes");
+marcadores.forEach(m=>mapa.removeLayer(m));
 
-clientes = await r.json();
-
-popularFiltros();
-
-mostrarClientes(clientes);
-
-marcarMapa(clientes);
-
-}
-
-
-
-function popularFiltros(){
-
-let cidades=[...new Set(clientes.map(c=>c.cidade))];
-
-let bases=[...new Set(clientes.map(c=>c.base))];
-
-cidades.forEach(c=>{
-document.getElementById("cidade").innerHTML+=
-`<option value="${c}">${c}</option>`;
-});
-
-bases.forEach(b=>{
-document.getElementById("base").innerHTML+=
-`<option value="${b}">${b}</option>`;
-});
+marcadores=[];
 
 }
 
@@ -182,25 +147,22 @@ const div=document.getElementById("lista");
 
 div.innerHTML="";
 
-lista.forEach(c=>{
+lista.slice(0,100).forEach(c=>{
 
 div.innerHTML+=`
 
 <div class="card">
 
 <b>${c.codigo}</b><br>
+
 ${c.cliente}<br>
-${c.endereco}<br>
-Base: ${c.base}
+
+${c.endereco}
 
 <div class="botoes">
 
-<button onclick="abrirRota('${c.endereco}')">
+<button onclick="rota('${c.endereco}')">
 Rota
-</button>
-
-<button onclick="addRota('${c.codigo}')">
-Rota do Dia
 </button>
 
 <button onclick="visita('${c.codigo}')">
@@ -219,24 +181,11 @@ Visitado
 
 
 
-function abrirRota(endereco){
+function mostrarMapa(lista){
 
-window.open(
-"https://www.google.com/maps/dir/?api=1&destination="+
-encodeURIComponent(endereco)
-);
+limparMapa();
 
-}
-
-
-
-function marcarMapa(lista){
-
-marcadores.forEach(m=>mapa.removeLayer(m));
-
-marcadores=[];
-
-lista.forEach(c=>{
+lista.slice(0,50).forEach(c=>{
 
 if(!c.lat) return;
 
@@ -272,20 +221,18 @@ const dados=await r.json();
 
 mostrarClientes(dados);
 
-marcarMapa(dados);
+mostrarMapa(dados);
 
 }
 
 
 
-function addRota(codigo){
+function rota(endereco){
 
-rotaDia.push(codigo);
-
-fetch(API+
-"?action=rota_salvar&codigo="+codigo+"&vendedor=1");
-
-alert("Cliente adicionado à rota do dia");
+window.open(
+"https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(endereco)
+);
 
 }
 
@@ -293,51 +240,22 @@ alert("Cliente adicionado à rota do dia");
 
 async function visita(codigo){
 
-await fetch(API+
-"?action=visita&codigo="+codigo+"&vendedor=1");
+await fetch(
+API+"?action=visita&codigo="+codigo+"&vendedor=1"
+);
 
 alert("Visita registrada");
 
-dashboard();
-
 }
 
 
 
-async function dashboard(){
+document.getElementById("busca")
+.addEventListener("input",function(){
 
-const r=await fetch(API+"?action=dashboard&vendedor=1");
+clearTimeout(debounce);
 
-const d=await r.json();
-
-document.getElementById("dashboard").innerHTML=
-"Visitas hoje: "+d.visitas_hoje;
-
-}
-
-
-
-navigator.geolocation.getCurrentPosition(pos=>{
-
-const lat=pos.coords.latitude;
-
-const lng=pos.coords.longitude;
-
-clientes.sort((a,b)=>{
-
-let da=Math.sqrt(
-Math.pow(lat-a.lat,2)+Math.pow(lng-a.lng,2)
-);
-
-let db=Math.sqrt(
-Math.pow(lat-b.lat,2)+Math.pow(lng-b.lng,2)
-);
-
-return da-db;
-
-});
-
-mostrarClientes(clientes);
+debounce=setTimeout(buscar,500);
 
 });
 
@@ -345,11 +263,11 @@ mostrarClientes(clientes);
 
 iniciarMapa();
 
-carregarClientes();
+</script>
 
-dashboard();
+<script>
 
-  if("serviceWorker" in navigator){
+if("serviceWorker" in navigator){
 
 navigator.serviceWorker.register("sw.js");
 
@@ -358,5 +276,5 @@ navigator.serviceWorker.register("sw.js");
 </script>
 
 </body>
-  
+
 </html>
