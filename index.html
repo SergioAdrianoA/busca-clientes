@@ -72,7 +72,7 @@ font-size:16px;
 }
 
 #map{
-height:400px;
+height:420px;
 border-radius:10px;
 }
 
@@ -85,6 +85,7 @@ border-radius:10px;
 <header>
 Sistema de Rotas
 </header>
+
 
 <!-- LOGIN -->
 
@@ -99,6 +100,7 @@ Sistema de Rotas
 
 </div>
 
+
 <!-- MENU -->
 
 <div id="menu" class="container" style="display:none">
@@ -109,13 +111,14 @@ Sistema de Rotas
 
 <button onclick="abrirTela('clientes')">📋 Clientes</button>
 <button onclick="abrirTela('rota')">📅 Rota do Dia</button>
-<button onclick="abrirTela('mapa')">🗺 Mapa dos Clientes</button>
+<button onclick="abrirTela('mapa')">🗺 Mapa</button>
 <button onclick="abrirTela('dashboard')">📊 Dashboard</button>
 <button onclick="logout()">🚪 Sair</button>
 
 </div>
 
 </div>
+
 
 <!-- CLIENTES -->
 
@@ -137,6 +140,7 @@ Sistema de Rotas
 
 </div>
 
+
 <!-- ROTA -->
 
 <div id="rota" class="container" style="display:none">
@@ -149,6 +153,7 @@ Sistema de Rotas
 
 </div>
 
+
 <!-- MAPA -->
 
 <div id="mapa" class="container" style="display:none">
@@ -157,9 +162,16 @@ Sistema de Rotas
 
 <h2>Mapa</h2>
 
+<button onclick="mostrarRotaMapa()">🗺 Mostrar rota do dia</button>
+<button onclick="gerarRotaGoogle()">🧭 Gerar rota</button>
+<button onclick="clientesProximos()">📍 Clientes próximos</button>
+
+<br><br>
+
 <div id="map"></div>
 
 </div>
+
 
 <!-- DASHBOARD -->
 
@@ -172,6 +184,7 @@ Sistema de Rotas
 <div id="dadosDashboard"></div>
 
 </div>
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -236,6 +249,33 @@ function logout(){
 
 localStorage.removeItem("vendedor")
 location.reload()
+
+}
+
+async function carregarFiltros(){
+
+let r = await fetch(API+"?action=filtros")
+let dados = await r.json()
+
+let cidadeSelect=document.getElementById("filtroCidade")
+let bairroSelect=document.getElementById("filtroBairro")
+let baseSelect=document.getElementById("filtroBase")
+
+cidadeSelect.innerHTML='<option value="">Cidade</option>'
+bairroSelect.innerHTML='<option value="">Bairro</option>'
+baseSelect.innerHTML='<option value="">Base</option>'
+
+dados.cidades.forEach(c=>{
+cidadeSelect.innerHTML+=`<option value="${c}">${c}</option>`
+})
+
+dados.bairros.forEach(b=>{
+bairroSelect.innerHTML+=`<option value="${b}">${b}</option>`
+})
+
+dados.bases.forEach(b=>{
+baseSelect.innerHTML+=`<option value="${b}">${b}</option>`
+})
 
 }
 
@@ -309,11 +349,9 @@ async function carregarRota(){
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
-
 let rota=await r.json()
 
 const div=document.getElementById("listaRota")
-
 div.innerHTML=""
 
 rota.forEach(c=>{
@@ -401,6 +439,126 @@ L.tileLayer(
 
 }
 
+async function mostrarRotaMapa(){
+
+let vendedor = localStorage.getItem("vendedor")
+
+let r = await fetch(API+"?action=rota_listar&vendedor="+vendedor)
+
+let rota = await r.json()
+
+marcadores.forEach(m=>mapa.removeLayer(m))
+marcadores=[]
+
+rota.forEach(async c=>{
+
+let geo = await geocodeEndereco(c.endereco)
+
+if(!geo) return
+
+let cor = c.visitado ? "green" : "red"
+
+let marker = L.circleMarker([geo.lat,geo.lng],{
+radius:8,
+color:cor
+}).addTo(mapa)
+.bindPopup("<b>"+c.cliente+"</b><br>"+c.endereco)
+
+marcadores.push(marker)
+
+})
+
+}
+
+async function gerarRotaGoogle(){
+
+let vendedor = localStorage.getItem("vendedor")
+
+let r = await fetch(API+"?action=rota_listar&vendedor="+vendedor)
+let rota = await r.json()
+
+let url="https://www.google.com/maps/dir/"
+
+rota.forEach(c=>{
+url += encodeURIComponent(c.endereco)+"/"
+})
+
+window.open(url)
+
+}
+
+async function clientesProximos(){
+
+navigator.geolocation.getCurrentPosition(async pos=>{
+
+let lat = pos.coords.latitude
+let lng = pos.coords.longitude
+
+let r = await fetch(API+"?action=buscar&q=")
+let lista = await r.json()
+
+marcadores.forEach(m=>mapa.removeLayer(m))
+marcadores=[]
+
+lista.forEach(async c=>{
+
+let geo = await geocodeEndereco(c.endereco)
+if(!geo) return
+
+let dist = calcularDistancia(lat,lng,geo.lat,geo.lng)
+
+if(dist<=2){
+
+let marker = L.marker([geo.lat,geo.lng])
+.addTo(mapa)
+.bindPopup("<b>"+c.cliente+"</b><br>"+dist.toFixed(2)+" km")
+
+marcadores.push(marker)
+
+}
+
+})
+
+})
+
+}
+
+async function geocodeEndereco(endereco){
+
+let url="https://nominatim.openstreetmap.org/search?format=json&q="
++encodeURIComponent(endereco)
+
+let r=await fetch(url)
+let data=await r.json()
+
+if(data.length==0) return null
+
+return{
+lat:parseFloat(data[0].lat),
+lng:parseFloat(data[0].lon)
+}
+
+}
+
+function calcularDistancia(lat1,lon1,lat2,lon2){
+
+let R = 6371
+
+let dLat = (lat2-lat1)*Math.PI/180
+let dLon = (lon2-lon1)*Math.PI/180
+
+let a =
+Math.sin(dLat/2)*Math.sin(dLat/2)+
+Math.cos(lat1*Math.PI/180)*
+Math.cos(lat2*Math.PI/180)*
+Math.sin(dLon/2)*Math.sin(dLon/2)
+
+let c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))
+
+return R*c
+
+}
+
 async function carregarDashboard(){
 
 let vendedor=localStorage.getItem("vendedor")
@@ -410,16 +568,15 @@ let d=await r.json()
 
 let visitas=d.visitas_hoje
 let total=d.total_rota
+let faltam=total-visitas
 
-let faltam = total - visitas
-
-let porcentagemVisitados = total ? Math.round((visitas/total)*100) : 0
-let porcentagemRestantes = 100 - porcentagemVisitados
+let pVisitados = total ? Math.round((visitas/total)*100) : 0
+let pRestantes = 100 - pVisitados
 
 document.getElementById("dadosDashboard").innerHTML =
-'<canvas id="grafico"></canvas>' +
-'<br><b>Visitados:</b> '+porcentagemVisitados+'%<br>' +
-'<b>Pendentes:</b> '+porcentagemRestantes+'%'
+'<canvas id="grafico"></canvas>'+
+'<br><b>Visitados:</b> '+pVisitados+'%<br>'+
+'<b>Pendentes:</b> '+pRestantes+'%'
 
 new Chart(document.getElementById("grafico"),{
 
@@ -427,8 +584,8 @@ type:"doughnut",
 
 data:{
 labels:[
-"Visitados ("+porcentagemVisitados+"%)",
-"Pendentes ("+porcentagemRestantes+"%)"
+"Visitados ("+pVisitados+"%)",
+"Pendentes ("+pRestantes+"%)"
 ],
 datasets:[{
 data:[visitas,faltam],
@@ -450,6 +607,7 @@ document.getElementById("menu").style.display="block"
 }
 
 iniciarMapa()
+carregarFiltros()
 
 </script>
 
