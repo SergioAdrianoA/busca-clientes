@@ -84,6 +84,7 @@ border-radius:10px;
 Sistema de Rotas
 </header>
 
+
 <!-- LOGIN -->
 
 <div id="login" class="container">
@@ -96,6 +97,7 @@ Sistema de Rotas
 <button onclick="login()">Entrar</button>
 
 </div>
+
 
 <!-- MENU -->
 
@@ -114,6 +116,7 @@ Sistema de Rotas
 </div>
 
 </div>
+
 
 <!-- CLIENTES -->
 
@@ -135,6 +138,7 @@ Sistema de Rotas
 
 </div>
 
+
 <!-- ROTA -->
 
 <div id="rota" class="container" style="display:none">
@@ -143,11 +147,12 @@ Sistema de Rotas
 
 <h2>Rota do Dia</h2>
 
-<button onclick="iniciarRota()">🚀 Iniciar Rota</button>
+<button onclick="iniciarRota()">🚀 Iniciar rota geral</button>
 
 <div id="listaRota"></div>
 
 </div>
+
 
 <!-- MAPA -->
 
@@ -157,13 +162,10 @@ Sistema de Rotas
 
 <h2>Mapa da Rota</h2>
 
-<button onclick="mostrarRotaMapa()">Mostrar rota</button>
-
-<br><br>
-
 <div id="map"></div>
 
 </div>
+
 
 <!-- DASHBOARD -->
 
@@ -178,6 +180,7 @@ Sistema de Rotas
 </div>
 
 
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -186,6 +189,8 @@ const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg
 
 let mapa
 let marcadores=[]
+
+
 
 function abrirTela(nome){
 
@@ -210,6 +215,8 @@ setTimeout(()=>{mapa.invalidateSize()},300)
 
 }
 
+
+
 function voltarMenu(){
 
 document.getElementById("clientes").style.display="none"
@@ -220,6 +227,8 @@ document.getElementById("dashboard").style.display="none"
 document.getElementById("menu").style.display="block"
 
 }
+
+
 
 async function login(){
 
@@ -237,16 +246,25 @@ localStorage.setItem("vendedor",usuario)
 document.getElementById("login").style.display="none"
 document.getElementById("menu").style.display="block"
 
+}else{
+
+alert("Login inválido")
+
 }
 
 }
+
+
 
 function logout(){
 
 localStorage.removeItem("vendedor")
+
 location.reload()
 
 }
+
+
 
 async function carregarFiltros(){
 
@@ -275,6 +293,8 @@ base.innerHTML+=`<option value="${b}">${b}</option>`
 })
 
 }
+
+
 
 async function buscarClientes(){
 
@@ -311,7 +331,13 @@ Base: ${c.base}
 
 <br><br>
 
-<button onclick="addRota('${c.codigo}')">Adicionar à rota</button>
+<button onclick="addRota('${c.codigo}')">
+Adicionar à rota
+</button>
+
+<button onclick="iniciarCliente('${c.endereco}')">
+🧭 Iniciar rota
+</button>
 
 </div>
 
@@ -320,6 +346,8 @@ Base: ${c.base}
 })
 
 }
+
+
 
 async function addRota(codigo){
 
@@ -337,6 +365,8 @@ alert("Cliente adicionado")
 
 }
 
+
+
 async function carregarRota(){
 
 let vendedor=localStorage.getItem("vendedor")
@@ -349,13 +379,27 @@ const div=document.getElementById("listaRota")
 
 div.innerHTML=""
 
+let grupos={}
+
 rota.forEach(c=>{
 
-let classe=c.visitado?"card visitado":"card"
+let data=new Date(c.data).toLocaleDateString()
+
+if(!grupos[data]) grupos[data]=[]
+
+grupos[data].push(c)
+
+})
+
+for(let data in grupos){
+
+div.innerHTML+=`<h3>📅 ${data}</h3>`
+
+grupos[data].forEach(c=>{
 
 div.innerHTML+=`
 
-<div class="${classe}">
+<div class="card">
 
 <b>${c.codigo}</b><br>
 ${c.cliente}<br>
@@ -363,9 +407,17 @@ ${c.endereco}
 
 <br><br>
 
-<button onclick="visita('${c.codigo}')">Registrar visita</button>
+<button onclick="iniciarCliente('${c.endereco}')">
+🧭 Iniciar rota
+</button>
 
-<button onclick="removerRota('${c.codigo}')">Remover cliente</button>
+<button onclick="visita('${c.codigo}')">
+✔ Registrar visita
+</button>
+
+<button onclick="removerRota('${c.codigo}')">
+❌ Remover cliente
+</button>
 
 </div>
 
@@ -374,6 +426,22 @@ ${c.endereco}
 })
 
 }
+
+}
+
+
+
+function iniciarCliente(endereco){
+
+let url=
+"https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(endereco)
+
+window.open(url)
+
+}
+
+
 
 async function removerRota(codigo){
 
@@ -385,6 +453,8 @@ carregarRota()
 
 }
 
+
+
 async function visita(codigo){
 
 let vendedor=localStorage.getItem("vendedor")
@@ -394,6 +464,8 @@ await fetch(API+"?action=visita&codigo="+codigo+"&vendedor="+vendedor)
 carregarRota()
 
 }
+
+
 
 function iniciarMapa(){
 
@@ -414,74 +486,31 @@ L.marker([lat,lng]).addTo(mapa).bindPopup("Você está aqui")
 
 }
 
-async function mostrarRotaMapa(){
 
-let vendedor = localStorage.getItem("vendedor")
 
-let r = await fetch(API+"?action=rota_listar&vendedor="+vendedor)
+async function iniciarRota(){
 
-let rota = await r.json()
+let vendedor=localStorage.getItem("vendedor")
 
-navigator.geolocation.getCurrentPosition(pos=>{
+let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
 
-let latAtual = pos.coords.latitude
-let lngAtual = pos.coords.longitude
+let rota=await r.json()
 
-marcadores.forEach(m=>mapa.removeLayer(m))
-marcadores=[]
+if(rota.length==0){
+alert("Nenhum cliente na rota")
+return
+}
 
-let pontos=[]
+let destino=rota[0].endereco
 
-pontos.push([latAtual,lngAtual])
+let url="https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(destino)
 
-let inicio=L.marker([latAtual,lngAtual])
-.addTo(mapa)
-.bindPopup("Você está aqui")
-
-marcadores.push(inicio)
-
-rota.forEach(c=>{
-
-if(!c.lat || !c.lng) return
-
-let cor=c.visitado?"green":"red"
-
-let marker=L.circleMarker([c.lat,c.lng],{
-radius:8,
-color:cor
-})
-.addTo(mapa)
-.bindPopup(c.cliente)
-
-marcadores.push(marker)
-
-pontos.push([c.lat,c.lng])
-
-})
-
-if(pontos.length>1){
-
-let linha=L.polyline(pontos,{
-color:"blue"
-}).addTo(mapa)
-
-mapa.fitBounds(linha.getBounds())
+window.open(url)
 
 }
 
-})
 
-}
-
-function iniciarRota(){
-
-abrirTela("mapa")
-
-setTimeout(()=>{
-mostrarRotaMapa()
-},500)
-
-}
 
 async function carregarDashboard(){
 
@@ -518,6 +547,8 @@ backgroundColor:["green","orange"]
 
 }
 
+
+
 let vendedorSalvo=localStorage.getItem("vendedor")
 
 if(vendedorSalvo){
@@ -526,6 +557,8 @@ document.getElementById("login").style.display="none"
 document.getElementById("menu").style.display="block"
 
 }
+
+
 
 iniciarMapa()
 
