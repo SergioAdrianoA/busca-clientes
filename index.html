@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
 
 <meta charset="UTF-8">
@@ -7,7 +8,11 @@
 
 <title>Sistema de Rotas</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="manifest" href="manifest.json">
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -23,6 +28,7 @@ background:#1976d2;
 color:white;
 padding:15px;
 text-align:center;
+font-size:20px;
 }
 
 .container{
@@ -41,16 +47,6 @@ box-shadow:0 2px 6px rgba(0,0,0,0.15);
 background:#d4edda;
 }
 
-button{
-padding:10px;
-border:none;
-border-radius:8px;
-background:#1976d2;
-color:white;
-margin:4px;
-cursor:pointer;
-}
-
 input,select{
 width:100%;
 padding:10px;
@@ -59,8 +55,25 @@ border-radius:8px;
 border:1px solid #ccc;
 }
 
+button{
+padding:10px;
+border:none;
+border-radius:8px;
+background:#1976d2;
+color:white;
+cursor:pointer;
+margin:3px;
+}
+
+.menu button{
+width:100%;
+padding:15px;
+font-size:16px;
+}
+
 #map{
 height:400px;
+border-radius:10px;
 }
 
 </style>
@@ -69,7 +82,12 @@ height:400px;
 
 <body>
 
-<header>Sistema de Rotas</header>
+<header>
+Sistema de Rotas
+</header>
+
+
+<!-- LOGIN -->
 
 <div id="login" class="container">
 
@@ -82,59 +100,135 @@ height:400px;
 
 </div>
 
+
+<!-- MENU -->
+
 <div id="menu" class="container" style="display:none">
 
-<button onclick="abrirTela('clientes')">Clientes</button>
-<button onclick="abrirTela('rota')">Rota do Dia</button>
-<button onclick="abrirTela('mapa')">Mapa</button>
-<button onclick="abrirTela('dashboard')">Dashboard</button>
-<button onclick="logout()">Sair</button>
+<h2>Menu</h2>
+
+<div class="menu">
+
+<button onclick="abrirTela('clientes')">📋 Clientes</button>
+<button onclick="abrirTela('rota')">📅 Rota do Dia</button>
+<button onclick="abrirTela('mapa')">🗺 Mapa dos Clientes</button>
+<button onclick="abrirTela('dashboard')">📊 Dashboard</button>
+<button onclick="logout()">🚪 Sair</button>
 
 </div>
 
+</div>
+
+
+<!-- CLIENTES -->
+
 <div id="clientes" class="container" style="display:none">
 
-<button onclick="voltarMenu()">Menu</button>
+<button onclick="voltarMenu()">← Menu</button>
+
+<h2>Clientes</h2>
 
 <input id="busca" placeholder="Buscar cliente">
 
-<select id="filtroCidade"></select>
-<select id="filtroBairro"></select>
-<select id="filtroBase"></select>
+<select id="filtroCidade">
+<option value="">Cidade</option>
+</select>
+
+<select id="filtroBairro">
+<option value="">Bairro</option>
+</select>
+
+<select id="filtroBase">
+<option value="">Base</option>
+</select>
 
 <div id="listaClientes"></div>
 
 </div>
 
+
+<!-- ROTA -->
+
 <div id="rota" class="container" style="display:none">
 
-<button onclick="voltarMenu()">Menu</button>
+<button onclick="voltarMenu()">← Menu</button>
+
+<h2>Rota do Dia</h2>
 
 <div id="listaRota"></div>
 
 </div>
 
+
+<!-- MAPA -->
+
 <div id="mapa" class="container" style="display:none">
 
-<button onclick="voltarMenu()">Menu</button>
+<button onclick="voltarMenu()">← Menu</button>
+
+<h2>Mapa</h2>
 
 <div id="map"></div>
 
 </div>
 
+
+<!-- DASHBOARD -->
+
 <div id="dashboard" class="container" style="display:none">
 
-<button onclick="voltarMenu()">Menu</button>
+<button onclick="voltarMenu()">← Menu</button>
 
-<canvas id="grafico"></canvas>
+<h2>Dashboard</h2>
+
+<div id="dadosDashboard"></div>
 
 </div>
+
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
 const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
 
-let clientes=[];
+let mapa;
+let marcadores=[];
+let tempoBusca;
+
+
+
+function abrirTela(nome){
+
+document.getElementById("menu").style.display="none"
+document.getElementById("clientes").style.display="none"
+document.getElementById("rota").style.display="none"
+document.getElementById("mapa").style.display="none"
+document.getElementById("dashboard").style.display="none"
+
+document.getElementById(nome).style.display="block"
+
+if(nome=="clientes") carregarClientes()
+if(nome=="rota") carregarRota()
+if(nome=="dashboard") carregarDashboard()
+
+}
+
+
+
+function voltarMenu(){
+
+document.getElementById("clientes").style.display="none"
+document.getElementById("rota").style.display="none"
+document.getElementById("mapa").style.display="none"
+document.getElementById("dashboard").style.display="none"
+
+document.getElementById("menu").style.display="block"
+
+}
+
+
 
 async function login(){
 
@@ -160,6 +254,8 @@ alert("Login inválido")
 
 }
 
+
+
 function logout(){
 
 localStorage.removeItem("vendedor")
@@ -167,42 +263,40 @@ location.reload()
 
 }
 
-function abrirTela(t){
 
-document.getElementById("menu").style.display="none"
-document.getElementById("clientes").style.display="none"
-document.getElementById("rota").style.display="none"
-document.getElementById("mapa").style.display="none"
-document.getElementById("dashboard").style.display="none"
 
-document.getElementById(t).style.display="block"
+function carregarClientes(){
 
-if(t=="clientes") carregarClientes()
-if(t=="rota") carregarRota()
-if(t=="dashboard") carregarDashboard()
+document.getElementById("listaClientes").innerHTML =
+"<div class='card'>Digite algo para buscar clientes</div>"
 
 }
 
-function voltarMenu(){
 
-document.getElementById("clientes").style.display="none"
-document.getElementById("rota").style.display="none"
-document.getElementById("mapa").style.display="none"
-document.getElementById("dashboard").style.display="none"
 
-document.getElementById("menu").style.display="block"
+async function buscarClientes(){
+
+let termo=document.getElementById("busca").value
+
+let cidade=document.getElementById("filtroCidade").value
+let bairro=document.getElementById("filtroBairro").value
+let base=document.getElementById("filtroBase").value
+
+let url = API +
+"?action=buscar&q="+encodeURIComponent(termo)+
+"&cidade="+cidade+
+"&bairro="+bairro+
+"&base="+base
+
+let r = await fetch(url)
+
+let lista = await r.json()
+
+mostrarClientes(lista)
 
 }
 
-async function carregarClientes(){
 
-let r=await fetch(API+"?action=clientes")
-
-clientes=await r.json()
-
-mostrarClientes(clientes)
-
-}
 
 function mostrarClientes(lista){
 
@@ -220,11 +314,15 @@ div.innerHTML+=`
 ${c.cliente}<br>
 ${c.endereco}
 
-<br>
+<br><br>
 
-<button onclick="addRota('${c.codigo}')">Adicionar rota</button>
+<button onclick="addRota('${c.codigo}')">
+Adicionar à rota
+</button>
 
-<button onclick="abrirRota('${c.endereco}')">Abrir rota</button>
+<button onclick="abrirRota('${c.endereco}')">
+Abrir rota
+</button>
 
 </div>
 
@@ -234,17 +332,35 @@ ${c.endereco}
 
 }
 
+
+
+document.getElementById("busca").addEventListener("input",function(){
+
+clearTimeout(tempoBusca)
+
+tempoBusca=setTimeout(buscarClientes,400)
+
+})
+
+document.getElementById("filtroCidade").addEventListener("change",buscarClientes)
+document.getElementById("filtroBairro").addEventListener("change",buscarClientes)
+document.getElementById("filtroBase").addEventListener("change",buscarClientes)
+
+
+
 async function addRota(codigo){
 
 let vendedor=localStorage.getItem("vendedor")
 
-let r=await fetch(API+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor)
+let r = await fetch(
+API+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor
+)
 
-let d=await r.json()
+let d = await r.json()
 
 if(d.status=="existe"){
 
-alert("Cliente já está na rota")
+alert("Cliente já está na rota de hoje")
 
 }else{
 
@@ -253,6 +369,8 @@ alert("Adicionado à rota")
 }
 
 }
+
+
 
 async function carregarRota(){
 
@@ -268,7 +386,7 @@ div.innerHTML=""
 
 rota.forEach(c=>{
 
-let classe=c.visitado?"card visitado":"card"
+let classe = c.visitado ? "card visitado" : "card"
 
 div.innerHTML+=`
 
@@ -278,11 +396,15 @@ div.innerHTML+=`
 ${c.cliente}<br>
 ${c.endereco}
 
-<br>
+<br><br>
 
-<button onclick="abrirRota('${c.endereco}')">Iniciar rota</button>
+<button onclick="abrirRota('${c.endereco}')">
+Iniciar rota
+</button>
 
-<button onclick="visita('${c.codigo}')">Visitado</button>
+<button onclick="visita('${c.codigo}')">
+Registrar visita
+</button>
 
 </div>
 
@@ -291,6 +413,8 @@ ${c.endereco}
 })
 
 }
+
+
 
 async function visita(codigo){
 
@@ -302,13 +426,30 @@ carregarRota()
 
 }
 
+
+
 function abrirRota(endereco){
 
 window.open(
-"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(endereco)
+"https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(endereco)
 )
 
 }
+
+
+
+function iniciarMapa(){
+
+mapa=L.map("map").setView([-2.638,-54.937],12)
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+).addTo(mapa)
+
+}
+
+
 
 async function carregarDashboard(){
 
@@ -318,30 +459,54 @@ let r=await fetch(API+"?action=dashboard&vendedor="+vendedor)
 
 let d=await r.json()
 
+let visitas=d.visitas_hoje
+let faltam=d.total_rota-visitas
+
+document.getElementById("dadosDashboard").innerHTML =
+'<canvas id="grafico"></canvas>'
+
 new Chart(document.getElementById("grafico"),{
 
 type:"doughnut",
 
 data:{
-
 labels:["Visitados","Restantes"],
-
 datasets:[{
-
-data:[d.visitas_hoje,d.total_rota-d.visitas_hoje],
-
-backgroundColor:["green","red"]
-
+data:[visitas,faltam],
+backgroundColor:["#4caf50","#f44336"]
 }]
-
 }
 
 })
 
 }
 
+
+
+let vendedorSalvo=localStorage.getItem("vendedor")
+
+if(vendedorSalvo){
+
+document.getElementById("login").style.display="none"
+document.getElementById("menu").style.display="block"
+
+}
+
+
+
+iniciarMapa()
+
+</script>
+
+
+
+<script>
+
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("sw.js")
+}
+
 </script>
 
 </body>
-
 </html>
