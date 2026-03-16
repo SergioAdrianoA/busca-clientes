@@ -157,8 +157,7 @@ Sistema de Rotas
 
 <h2>Mapa da Rota</h2>
 
-<button onclick="mostrarRotaMapa()">Mostrar rota no mapa</button>
-<button onclick="gerarRotaGoogle()">Abrir rota no Google Maps</button>
+<button onclick="mostrarRotaMapa()">Mostrar rota</button>
 
 <br><br>
 
@@ -199,17 +198,11 @@ document.getElementById("dashboard").style.display="none"
 
 document.getElementById(nome).style.display="block"
 
-if(nome=="clientes"){
-carregarFiltros()
-}
+if(nome=="clientes") carregarFiltros()
 
-if(nome=="rota"){
-carregarRota()
-}
+if(nome=="rota") carregarRota()
 
-if(nome=="dashboard"){
-carregarDashboard()
-}
+if(nome=="dashboard") carregarDashboard()
 
 if(nome=="mapa"){
 setTimeout(()=>{mapa.invalidateSize()},300)
@@ -243,10 +236,6 @@ localStorage.setItem("vendedor",usuario)
 
 document.getElementById("login").style.display="none"
 document.getElementById("menu").style.display="block"
-
-}else{
-
-alert("Login inválido")
 
 }
 
@@ -324,8 +313,6 @@ Base: ${c.base}
 
 <button onclick="addRota('${c.codigo}')">Adicionar à rota</button>
 
-<button onclick="abrirRota('${c.endereco}')">Abrir rota</button>
-
 </div>
 
 `
@@ -380,8 +367,6 @@ ${c.endereco}
 
 <button onclick="removerRota('${c.codigo}')">Remover cliente</button>
 
-<button onclick="abrirRota('${c.endereco}')">Abrir rota</button>
-
 </div>
 
 `
@@ -406,18 +391,7 @@ let vendedor=localStorage.getItem("vendedor")
 
 await fetch(API+"?action=visita&codigo="+codigo+"&vendedor="+vendedor)
 
-alert("Visita registrada")
-
 carregarRota()
-
-}
-
-function abrirRota(endereco){
-
-window.open(
-"https://www.google.com/maps/dir/?api=1&destination="+
-encodeURIComponent(endereco)
-)
 
 }
 
@@ -442,32 +416,44 @@ L.marker([lat,lng]).addTo(mapa).bindPopup("Você está aqui")
 
 async function mostrarRotaMapa(){
 
-let vendedor=localStorage.getItem("vendedor")
+let vendedor = localStorage.getItem("vendedor")
 
-let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
+let r = await fetch(API+"?action=rota_listar&vendedor="+vendedor)
 
-let rota=await r.json()
+let rota = await r.json()
+
+navigator.geolocation.getCurrentPosition(pos=>{
+
+let latAtual = pos.coords.latitude
+let lngAtual = pos.coords.longitude
 
 marcadores.forEach(m=>mapa.removeLayer(m))
-
 marcadores=[]
 
 let pontos=[]
 
+pontos.push([latAtual,lngAtual])
+
+let inicio=L.marker([latAtual,lngAtual])
+.addTo(mapa)
+.bindPopup("Você está aqui")
+
+marcadores.push(inicio)
+
 rota.forEach(c=>{
 
-if(!c.lat) return
+if(!c.lat || !c.lng) return
 
 let cor=c.visitado?"green":"red"
 
-let m=L.circleMarker([c.lat,c.lng],{
+let marker=L.circleMarker([c.lat,c.lng],{
 radius:8,
 color:cor
 })
 .addTo(mapa)
 .bindPopup(c.cliente)
 
-marcadores.push(m)
+marcadores.push(marker)
 
 pontos.push([c.lat,c.lng])
 
@@ -475,17 +461,15 @@ pontos.push([c.lat,c.lng])
 
 if(pontos.length>1){
 
-L.polyline(pontos,{
+let linha=L.polyline(pontos,{
 color:"blue"
 }).addTo(mapa)
 
-}
+mapa.fitBounds(linha.getBounds())
 
 }
 
-function gerarRotaGoogle(){
-
-window.open("https://www.google.com/maps")
+})
 
 }
 
@@ -493,7 +477,9 @@ function iniciarRota(){
 
 abrirTela("mapa")
 
+setTimeout(()=>{
 mostrarRotaMapa()
+},500)
 
 }
 
