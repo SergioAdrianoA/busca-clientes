@@ -84,7 +84,6 @@ border-radius:10px;
 Sistema de Rotas
 </header>
 
-
 <!-- LOGIN -->
 
 <div id="login" class="container">
@@ -97,7 +96,6 @@ Sistema de Rotas
 <button onclick="login()">Entrar</button>
 
 </div>
-
 
 <!-- MENU -->
 
@@ -116,7 +114,6 @@ Sistema de Rotas
 </div>
 
 </div>
-
 
 <!-- CLIENTES -->
 
@@ -138,7 +135,6 @@ Sistema de Rotas
 
 </div>
 
-
 <!-- ROTA -->
 
 <div id="rota" class="container" style="display:none">
@@ -150,7 +146,6 @@ Sistema de Rotas
 <div id="listaRota"></div>
 
 </div>
-
 
 <!-- MAPA -->
 
@@ -170,7 +165,6 @@ Sistema de Rotas
 
 </div>
 
-
 <!-- DASHBOARD -->
 
 <div id="dashboard" class="container" style="display:none">
@@ -179,7 +173,7 @@ Sistema de Rotas
 
 <h2>Dashboard</h2>
 
-<div id="dadosDashboard"></div>
+<canvas id="grafico"></canvas>
 
 </div>
 
@@ -188,12 +182,10 @@ Sistema de Rotas
 
 <script>
 
-const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec";
+const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg-r-W6rOFMwO1rcnuZNRIm8vXNGy053nx32mwgM/exec"
 
-let mapa;
-let marcadores=[];
-
-
+let mapa
+let marcadores=[]
 
 function abrirTela(nome){
 
@@ -210,12 +202,10 @@ if(nome=="rota") carregarRota()
 if(nome=="dashboard") carregarDashboard()
 
 if(nome=="mapa"){
-setTimeout(()=>{ mapa.invalidateSize() },300)
+setTimeout(()=>{mapa.invalidateSize()},300)
 }
 
 }
-
-
 
 function voltarMenu(){
 
@@ -227,8 +217,6 @@ document.getElementById("dashboard").style.display="none"
 document.getElementById("menu").style.display="block"
 
 }
-
-
 
 async function login(){
 
@@ -254,8 +242,6 @@ alert("Login inválido")
 
 }
 
-
-
 function logout(){
 
 localStorage.removeItem("vendedor")
@@ -263,7 +249,141 @@ location.reload()
 
 }
 
+async function buscarClientes(){
 
+let termo=document.getElementById("busca").value
+let cidade=document.getElementById("filtroCidade").value
+let bairro=document.getElementById("filtroBairro").value
+let base=document.getElementById("filtroBase").value
+
+let url=API+"?action=buscar&q="+termo+
+"&cidade="+cidade+
+"&bairro="+bairro+
+"&base="+base
+
+let r=await fetch(url)
+let clientes=await r.json()
+
+let div=document.getElementById("listaClientes")
+div.innerHTML=""
+
+clientes.forEach(c=>{
+
+div.innerHTML+=`
+
+<div class="card">
+
+<b>${c.codigo}</b><br>
+${c.cliente}<br>
+${c.endereco}
+
+<br><br>
+
+<button onclick="addRota('${c.codigo}')">
+Adicionar à rota
+</button>
+
+<button onclick="abrirRota('${c.endereco}')">
+Abrir rota
+</button>
+
+</div>
+
+`
+
+})
+
+}
+
+async function addRota(codigo){
+
+let vendedor=localStorage.getItem("vendedor")
+
+let r=await fetch(API+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor)
+let d=await r.json()
+
+if(d.status=="existe"){
+alert("Cliente já está na rota")
+}else{
+alert("Cliente adicionado")
+}
+
+}
+
+async function carregarRota(){
+
+let vendedor=localStorage.getItem("vendedor")
+
+let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
+let rota=await r.json()
+
+const div=document.getElementById("listaRota")
+div.innerHTML=""
+
+rota.forEach(c=>{
+
+let classe=c.visitado?"card visitado":"card"
+
+div.innerHTML+=`
+
+<div class="${classe}">
+
+<b>${c.codigo}</b><br>
+${c.cliente}<br>
+${c.endereco}
+
+<br><br>
+
+<button onclick="visita('${c.codigo}')">
+Registrar visita
+</button>
+
+<button onclick="removerRota('${c.codigo}')">
+Remover
+</button>
+
+<button onclick="abrirRota('${c.endereco}')">
+Abrir rota
+</button>
+
+</div>
+
+`
+
+})
+
+}
+
+async function visita(codigo){
+
+let vendedor=localStorage.getItem("vendedor")
+
+await fetch(API+"?action=visita&codigo="+codigo+"&vendedor="+vendedor)
+
+alert("Visita registrada")
+
+carregarRota()
+
+}
+
+async function removerRota(codigo){
+
+let vendedor=localStorage.getItem("vendedor")
+
+await fetch(API+"?action=rota_remover&codigo="+codigo+"&vendedor="+vendedor)
+
+carregarRota()
+
+}
+
+function abrirRota(endereco){
+
+window.open(
+"https://www.google.com/maps/dir/?api=1&destination="+
+encodeURIComponent(endereco)
+)
+
+}
 
 function iniciarMapa(){
 
@@ -275,14 +395,11 @@ L.tileLayer(
 
 }
 
-
-
 async function mostrarRotaMapa(){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
-
 let rota=await r.json()
 
 marcadores.forEach(m=>mapa.removeLayer(m))
@@ -294,57 +411,18 @@ if(!c.lat) return
 
 let cor=c.visitado?"green":"red"
 
-let marker=L.circleMarker([c.lat,c.lng],{
+let m=L.circleMarker([c.lat,c.lng],{
 radius:8,
 color:cor
 })
 .addTo(mapa)
-.bindPopup("<b>"+c.cliente+"</b><br>"+c.endereco)
+.bindPopup(c.cliente)
 
-marcadores.push(marker)
+marcadores.push(m)
 
 })
 
-if(marcadores.length){
-
-let grupo=new L.featureGroup(marcadores)
-
-mapa.fitBounds(grupo.getBounds())
-
 }
-
-}
-
-
-
-async function gerarRotaGoogle(){
-
-let vendedor=localStorage.getItem("vendedor")
-
-let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
-
-let rota=await r.json()
-
-if(rota.length==0){
-alert("Nenhum cliente na rota")
-return
-}
-
-let destino=rota[rota.length-1].endereco
-
-let waypoints=rota.slice(0,-1)
-.map(c=>c.endereco)
-.join("|")
-
-let url="https://www.google.com/maps/dir/?api=1"
-+"&destination="+encodeURIComponent(destino)
-+"&waypoints="+encodeURIComponent(waypoints)
-
-window.open(url)
-
-}
-
-
 
 async function clientesProximos(){
 
@@ -354,7 +432,6 @@ let lat=pos.coords.latitude
 let lng=pos.coords.longitude
 
 let r=await fetch(API+"?action=buscar&q=")
-
 let lista=await r.json()
 
 marcadores.forEach(m=>mapa.removeLayer(m))
@@ -368,11 +445,11 @@ let dist=calcularDistancia(lat,lng,c.lat,c.lng)
 
 if(dist<=2){
 
-let marker=L.marker([c.lat,c.lng])
+let m=L.marker([c.lat,c.lng])
 .addTo(mapa)
 .bindPopup(c.cliente+" - "+dist.toFixed(2)+" km")
 
-marcadores.push(marker)
+marcadores.push(m)
 
 }
 
@@ -381,8 +458,6 @@ marcadores.push(marker)
 })
 
 }
-
-
 
 function calcularDistancia(lat1,lon1,lat2,lon2){
 
@@ -403,11 +478,44 @@ return R*c
 
 }
 
+async function carregarDashboard(){
 
+let vendedor=localStorage.getItem("vendedor")
+
+let r=await fetch(API+"?action=dashboard&vendedor="+vendedor)
+let d=await r.json()
+
+let pendentes=d.total_rota-d.visitas_hoje
+
+new Chart(document.getElementById("grafico"),{
+
+type:"doughnut",
+
+data:{
+labels:["Visitados","Pendentes"],
+datasets:[{
+data:[d.visitas_hoje,pendentes],
+backgroundColor:["green","orange"]
+}]
+}
+
+})
+
+}
+
+let vendedorSalvo=localStorage.getItem("vendedor")
+
+if(vendedorSalvo){
+
+document.getElementById("login").style.display="none"
+document.getElementById("menu").style.display="block"
+
+}
 
 iniciarMapa()
 
 </script>
 
 </body>
+
 </html>
