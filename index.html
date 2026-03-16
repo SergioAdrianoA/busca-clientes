@@ -86,7 +86,6 @@ border-radius:10px;
 Sistema de Rotas
 </header>
 
-
 <!-- LOGIN -->
 
 <div id="login" class="container">
@@ -99,7 +98,6 @@ Sistema de Rotas
 <button onclick="login()">Entrar</button>
 
 </div>
-
 
 <!-- MENU -->
 
@@ -119,7 +117,6 @@ Sistema de Rotas
 
 </div>
 
-
 <!-- CLIENTES -->
 
 <div id="clientes" class="container" style="display:none">
@@ -130,26 +127,15 @@ Sistema de Rotas
 
 <input id="busca" placeholder="Buscar cliente">
 
-<select id="filtroCidade">
-<option value="">Cidade</option>
-</select>
+<select id="filtroCidade"></select>
+<select id="filtroBairro"></select>
+<select id="filtroBase"></select>
 
-<select id="filtroBairro">
-<option value="">Bairro</option>
-</select>
+<button onclick="buscarClientes()">🔎 Buscar</button>
 
-<select id="filtroBase">
-<option value="">Base</option>
-</select>
-
-<button onclick="buscarClientes()">
-🔎 Buscar
-</button>
-  
 <div id="listaClientes"></div>
 
 </div>
-
 
 <!-- ROTA -->
 
@@ -163,7 +149,6 @@ Sistema de Rotas
 
 </div>
 
-
 <!-- MAPA -->
 
 <div id="mapa" class="container" style="display:none">
@@ -175,7 +160,6 @@ Sistema de Rotas
 <div id="map"></div>
 
 </div>
-
 
 <!-- DASHBOARD -->
 
@@ -189,8 +173,6 @@ Sistema de Rotas
 
 </div>
 
-
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -199,13 +181,11 @@ const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg
 
 let mapa;
 let marcadores=[];
-let tempoBusca;
-
-
 
 function abrirTela(nome){
 
 document.getElementById("menu").style.display="none"
+
 document.getElementById("clientes").style.display="none"
 document.getElementById("rota").style.display="none"
 document.getElementById("mapa").style.display="none"
@@ -213,13 +193,10 @@ document.getElementById("dashboard").style.display="none"
 
 document.getElementById(nome).style.display="block"
 
-if(nome=="clientes") carregarClientes()
 if(nome=="rota") carregarRota()
 if(nome=="dashboard") carregarDashboard()
 
 }
-
-
 
 function voltarMenu(){
 
@@ -232,15 +209,12 @@ document.getElementById("menu").style.display="block"
 
 }
 
-
-
 async function login(){
 
 let usuario=document.getElementById("usuario").value
 let senha=document.getElementById("senha").value
 
 let r=await fetch(API+"?action=login&usuario="+usuario+"&senha="+senha)
-
 let d=await r.json()
 
 if(d.status=="ok"){
@@ -258,8 +232,6 @@ alert("Login inválido")
 
 }
 
-
-
 function logout(){
 
 localStorage.removeItem("vendedor")
@@ -267,21 +239,9 @@ location.reload()
 
 }
 
-
-
-function carregarClientes(){
-
-document.getElementById("listaClientes").innerHTML =
-"<div class='card'>Digite algo para buscar clientes</div>"
-
-}
-
-
-
 async function buscarClientes(){
 
 let termo=document.getElementById("busca").value
-
 let cidade=document.getElementById("filtroCidade").value
 let bairro=document.getElementById("filtroBairro").value
 let base=document.getElementById("filtroBase").value
@@ -293,19 +253,9 @@ let url = API +
 "&base="+base
 
 let r = await fetch(url)
-
 let lista = await r.json()
 
-mostrarClientes(lista)
-
-}
-
-
-
-function mostrarClientes(lista){
-
 const div=document.getElementById("listaClientes")
-
 div.innerHTML=""
 
 lista.forEach(c=>{
@@ -336,22 +286,6 @@ Abrir rota
 
 }
 
-
-
-document.getElementById("busca").addEventListener("input",function(){
-
-clearTimeout(tempoBusca)
-
-tempoBusca=setTimeout(buscarClientes,400)
-
-})
-
-document.getElementById("filtroCidade").addEventListener("change",buscarClientes)
-document.getElementById("filtroBairro").addEventListener("change",buscarClientes)
-document.getElementById("filtroBase").addEventListener("change",buscarClientes)
-
-
-
 async function addRota(codigo){
 
 let vendedor=localStorage.getItem("vendedor")
@@ -363,18 +297,12 @@ API+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor
 let d = await r.json()
 
 if(d.status=="existe"){
-
-alert("Cliente já está na rota de hoje")
-
+alert("Cliente já está na rota")
 }else{
-
 alert("Adicionado à rota")
-
 }
 
 }
-
-
 
 async function carregarRota(){
 
@@ -410,6 +338,10 @@ Iniciar rota
 Registrar visita
 </button>
 
+<button onclick="removerRota('${c.codigo}')">
+Remover
+</button>
+
 </div>
 
 `
@@ -418,7 +350,27 @@ Registrar visita
 
 }
 
+async function removerRota(codigo){
 
+let vendedor = localStorage.getItem("vendedor")
+
+let r = await fetch(
+API+"?action=rota_remover&codigo="+codigo+"&vendedor="+vendedor
+)
+
+let d = await r.json()
+
+if(d.status=="visitado"){
+alert("Não é possível remover cliente já visitado")
+return
+}
+
+if(d.status=="removido"){
+alert("Cliente removido da rota")
+carregarRota()
+}
+
+}
 
 async function visita(codigo){
 
@@ -430,8 +382,6 @@ carregarRota()
 
 }
 
-
-
 function abrirRota(endereco){
 
 window.open(
@@ -440,8 +390,6 @@ encodeURIComponent(endereco)
 )
 
 }
-
-
 
 function iniciarMapa(){
 
@@ -453,28 +401,35 @@ L.tileLayer(
 
 }
 
-
-
 async function carregarDashboard(){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=dashboard&vendedor="+vendedor)
-
 let d=await r.json()
 
 let visitas=d.visitas_hoje
-let faltam=d.total_rota-visitas
+let total=d.total_rota
+
+let faltam = total - visitas
+
+let porcentagemVisitados = total ? Math.round((visitas/total)*100) : 0
+let porcentagemRestantes = 100 - porcentagemVisitados
 
 document.getElementById("dadosDashboard").innerHTML =
-'<canvas id="grafico"></canvas>'
+'<canvas id="grafico"></canvas>' +
+'<br><b>Visitados:</b> '+porcentagemVisitados+'%<br>' +
+'<b>Pendentes:</b> '+porcentagemRestantes+'%'
 
 new Chart(document.getElementById("grafico"),{
 
 type:"doughnut",
 
 data:{
-labels:["Visitados","Restantes"],
+labels:[
+"Visitados ("+porcentagemVisitados+"%)",
+"Pendentes ("+porcentagemRestantes+"%)"
+],
 datasets:[{
 data:[visitas,faltam],
 backgroundColor:["#4caf50","#f44336"]
@@ -485,8 +440,6 @@ backgroundColor:["#4caf50","#f44336"]
 
 }
 
-
-
 let vendedorSalvo=localStorage.getItem("vendedor")
 
 if(vendedorSalvo){
@@ -496,13 +449,9 @@ document.getElementById("menu").style.display="block"
 
 }
 
-
-
 iniciarMapa()
 
 </script>
-
-
 
 <script>
 
