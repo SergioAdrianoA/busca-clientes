@@ -8,6 +8,13 @@
 
 <title>Sistema de Rotas</title>
 
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1976d2">
+
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
 <link rel="stylesheet"
 href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
@@ -19,6 +26,14 @@ body{
 font-family:Arial;
 margin:0;
 background:#f4f6f8;
+}
+
+html, body {
+height: 100%;
+}
+
+body {
+overscroll-behavior: none;
 }
 
 header{
@@ -84,102 +99,53 @@ border-radius:10px;
 Sistema de Rotas
 </header>
 
-
-<!-- LOGIN -->
-
 <div id="login" class="container">
-
 <h2>Login</h2>
-
 <input id="usuario" placeholder="Usuário">
 <input id="senha" type="password" placeholder="Senha">
-
 <button onclick="login()">Entrar</button>
-
 </div>
 
-
-<!-- MENU -->
-
 <div id="menu" class="container" style="display:none">
-
 <h2>Menu</h2>
-
 <div class="menu">
-
 <button onclick="abrirTela('clientes')">📋 Clientes</button>
 <button onclick="abrirTela('rota')">📅 Rota do Dia</button>
 <button onclick="abrirTela('mapa')">🗺 Mapa</button>
 <button onclick="abrirTela('dashboard')">📊 Dashboard</button>
 <button onclick="logout()">🚪 Sair</button>
-
 </div>
-
 </div>
-
-
-<!-- CLIENTES -->
 
 <div id="clientes" class="container" style="display:none">
-
 <button onclick="voltarMenu()">← Menu</button>
-
 <h2>Clientes</h2>
-
 <input id="busca" placeholder="Buscar cliente">
-
 <select id="filtroCidade"></select>
 <select id="filtroBairro"></select>
 <select id="filtroBase"></select>
-
 <button onclick="buscarClientes()">🔎 Buscar</button>
-
 <div id="listaClientes"></div>
-
 </div>
-
-
-<!-- ROTA -->
 
 <div id="rota" class="container" style="display:none">
-
 <button onclick="voltarMenu()">← Menu</button>
-
 <h2>Rota do Dia</h2>
-
 <button onclick="iniciarRota()">🚀 Iniciar rota geral</button>
-
 <div id="listaRota"></div>
-
 </div>
-
-
-<!-- MAPA -->
 
 <div id="mapa" class="container" style="display:none">
-
 <button onclick="voltarMenu()">← Menu</button>
-
 <h2>Mapa da Rota</h2>
-
 <div id="map"></div>
-
 </div>
-
-
-<!-- DASHBOARD -->
 
 <div id="dashboard" class="container" style="display:none">
-
 <button onclick="voltarMenu()">← Menu</button>
-
 <h2>Dashboard</h2>
-
 <canvas id="grafico"></canvas>
-
 </div>
-
-
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -189,8 +155,7 @@ const API="https://script.google.com/macros/s/AKfycbyi69WjNXYRyIU281YMsZuhtj03Gg
 
 let mapa
 let marcadores=[]
-
-
+let mapaInicializado=false
 
 function abrirTela(nome){
 
@@ -204,18 +169,18 @@ document.getElementById("dashboard").style.display="none"
 document.getElementById(nome).style.display="block"
 
 if(nome=="clientes") carregarFiltros()
-
 if(nome=="rota") carregarRota()
-
 if(nome=="dashboard") carregarDashboard()
 
 if(nome=="mapa"){
+if(!mapaInicializado){
+iniciarMapa()
+mapaInicializado=true
+}
 setTimeout(()=>{mapa.invalidateSize()},300)
 }
 
 }
-
-
 
 function voltarMenu(){
 
@@ -228,15 +193,12 @@ document.getElementById("menu").style.display="block"
 
 }
 
-
-
 async function login(){
 
 let usuario=document.getElementById("usuario").value
 let senha=document.getElementById("senha").value
 
 let r=await fetch(API+"?action=login&usuario="+usuario+"&senha="+senha)
-
 let d=await r.json()
 
 if(d.status=="ok"){
@@ -246,30 +208,23 @@ localStorage.setItem("vendedor",usuario)
 document.getElementById("login").style.display="none"
 document.getElementById("menu").style.display="block"
 
+document.body.scrollTop=0
+document.documentElement.scrollTop=0
+
 }else{
-
 alert("Login inválido")
-
 }
 
 }
-
-
 
 function logout(){
-
 localStorage.removeItem("vendedor")
-
 location.reload()
-
 }
-
-
 
 async function carregarFiltros(){
 
 let r=await fetch(API+"?action=filtros")
-
 let dados=await r.json()
 
 let cidade=document.getElementById("filtroCidade")
@@ -280,21 +235,11 @@ cidade.innerHTML="<option value=''>Cidade</option>"
 bairro.innerHTML="<option value=''>Bairro</option>"
 base.innerHTML="<option value=''>Base</option>"
 
-dados.cidades.forEach(c=>{
-cidade.innerHTML+=`<option value="${c}">${c}</option>`
-})
-
-dados.bairros.forEach(b=>{
-bairro.innerHTML+=`<option value="${b}">${b}</option>`
-})
-
-dados.bases.forEach(b=>{
-base.innerHTML+=`<option value="${b}">${b}</option>`
-})
+dados.cidades.forEach(c=>cidade.innerHTML+=`<option>${c}</option>`)
+dados.bairros.forEach(b=>bairro.innerHTML+=`<option>${b}</option>`)
+dados.bases.forEach(b=>base.innerHTML+=`<option>${b}</option>`)
 
 }
-
-
 
 async function buscarClientes(){
 
@@ -309,52 +254,33 @@ let url=API+"?action=buscar&q="+termo+
 "&base="+base
 
 let r=await fetch(url)
-
 let clientes=await r.json()
 
 let div=document.getElementById("listaClientes")
-
 div.innerHTML=""
 
 clientes.forEach(c=>{
-
 div.innerHTML+=`
-
 <div class="card">
-
 <b>${c.codigo}</b><br>
 ${c.cliente}<br>
 ${c.endereco}<br>
 Cidade: ${c.cidade}<br>
 Bairro: ${c.bairro}<br>
 Base: ${c.base}
-
 <br><br>
-
-<button onclick="addRota('${c.codigo}')">
-Adicionar à rota
-</button>
-
-<button onclick="iniciarCliente('${c.endereco}')">
-🧭 Iniciar rota
-</button>
-
-</div>
-
-`
-
+<button onclick="addRota('${c.codigo}')">Adicionar à rota</button>
+<button onclick="iniciarCliente('${c.endereco}')">🧭 Iniciar rota</button>
+</div>`
 })
 
 }
-
-
 
 async function addRota(codigo){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=rota_salvar&codigo="+codigo+"&vendedor="+vendedor)
-
 let d=await r.json()
 
 if(d.status=="existe"){
@@ -365,30 +291,22 @@ alert("Cliente adicionado")
 
 }
 
-
-
 async function carregarRota(){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
-
 let rota=await r.json()
 
 const div=document.getElementById("listaRota")
-
 div.innerHTML=""
 
 let grupos={}
 
 rota.forEach(c=>{
-
 let data=new Date(c.data).toLocaleDateString()
-
 if(!grupos[data]) grupos[data]=[]
-
 grupos[data].push(c)
-
 })
 
 for(let data in grupos){
@@ -398,26 +316,14 @@ div.innerHTML+=`<h3>📅 ${data}</h3>`
 grupos[data].forEach(c=>{
 
 div.innerHTML+=`
-
 <div class="card">
-
 <b>${c.codigo}</b><br>
 ${c.cliente}<br>
 ${c.endereco}
-
 <br><br>
-
-<button onclick="iniciarCliente('${c.endereco}')">
-🧭 Iniciar rota
-</button>
-
-<button onclick="removerRota('${c.codigo}')">
-❌ Remover cliente
-<button>
-
-</div>
-
-`
+<button onclick="iniciarCliente('${c.endereco}')">🧭 Iniciar rota</button>
+<button onclick="removerRota('${c.codigo}')">❌ Remover cliente</button>
+</div>`
 
 })
 
@@ -425,43 +331,18 @@ ${c.endereco}
 
 }
 
-
-
 function iniciarCliente(endereco){
-
-let url=
-"https://www.google.com/maps/dir/?api=1&destination="+
-encodeURIComponent(endereco)
-
+let url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(endereco)
 window.open(url)
-
 }
-
-
 
 async function removerRota(codigo){
 
 let vendedor=localStorage.getItem("vendedor")
-
 await fetch(API+"?action=rota_remover&codigo="+codigo+"&vendedor="+vendedor)
-
 carregarRota()
 
 }
-
-
-
-async function visita(codigo){
-
-let vendedor=localStorage.getItem("vendedor")
-
-await fetch(API+"?action=visita&codigo="+codigo+"&vendedor="+vendedor)
-
-carregarRota()
-
-}
-
-
 
 function iniciarMapa(){
 
@@ -472,9 +353,7 @@ let lng=pos.coords.longitude
 
 mapa=L.map("map").setView([lat,lng],13)
 
-L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-).addTo(mapa)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa)
 
 L.marker([lat,lng]).addTo(mapa).bindPopup("Você está aqui")
 
@@ -482,14 +361,11 @@ L.marker([lat,lng]).addTo(mapa).bindPopup("Você está aqui")
 
 }
 
-
-
 async function iniciarRota(){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=rota_listar&vendedor="+vendedor)
-
 let rota=await r.json()
 
 if(rota.length==0){
@@ -499,64 +375,47 @@ return
 
 let destino=rota[0].endereco
 
-let url="https://www.google.com/maps/dir/?api=1&destination="+
-encodeURIComponent(destino)
+let url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(destino)
 
 window.open(url)
 
 }
-
-
 
 async function carregarDashboard(){
 
 let vendedor=localStorage.getItem("vendedor")
 
 let r=await fetch(API+"?action=dashboard&vendedor="+vendedor)
-
 let d=await r.json()
 
 let pendentes=d.total_rota-d.visitas_hoje
-
 let total=d.total_rota||1
 
-let percVisitados=Math.round((d.visitas_hoje/total)*100)
-
-let percPendentes=100-percVisitados
-
 new Chart(document.getElementById("grafico"),{
-
 type:"doughnut",
-
 data:{
-labels:[
-"Visitados "+percVisitados+"%",
-"Pendentes "+percPendentes+"%"
-],
+labels:["Visitados","Pendentes"],
 datasets:[{
 data:[d.visitas_hoje,pendentes],
 backgroundColor:["green","orange"]
 }]
 }
-
 })
 
 }
 
-
-
 let vendedorSalvo=localStorage.getItem("vendedor")
 
 if(vendedorSalvo){
-
 document.getElementById("login").style.display="none"
 document.getElementById("menu").style.display="block"
-
 }
 
-
-
-iniciarMapa()
+if ("serviceWorker" in navigator) {
+window.addEventListener("load", () => {
+navigator.serviceWorker.register("sw.js")
+})
+}
 
 </script>
 
